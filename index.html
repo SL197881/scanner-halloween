@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scanner Halloween 2026</title>
+
+  <script src="https://unpkg.com/html5-qrcode"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+      background: #111;
+      color: white;
+    }
+
+    h1 {
+      font-size: 25px;
+      margin-bottom: 5px;
+    }
+
+    p {
+      color: #ccc;
+    }
+
+    #reader {
+      width: 100%;
+      max-width: 500px;
+      margin: 25px auto;
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    #estado {
+      margin-top: 20px;
+      padding: 15px;
+      font-size: 18px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>🎃 Scanner Halloween 2026</h1>
+  <p>Aponte a câmara para o QR Code do bilhete</p>
+
+  <div id="reader"></div>
+
+  <div id="estado">
+    A iniciar a câmara...
+  </div>
+
+  <script>
+    const scanner = new Html5Qrcode("reader");
+    let bloqueado = false;
+
+    function qrLido(textoQR) {
+
+      if (bloqueado) return;
+      bloqueado = true;
+
+      document.getElementById("estado").innerHTML =
+        "✅ QR Code lido<br>A abrir o bilhete...";
+
+      scanner.stop()
+        .then(() => {
+          window.location.href = textoQR;
+        })
+        .catch(() => {
+          window.location.href = textoQR;
+        });
+    }
+
+    Html5Qrcode.getCameras()
+      .then(cameras => {
+
+        if (!cameras || cameras.length === 0) {
+          document.getElementById("estado").innerHTML =
+            "❌ Não foi encontrada nenhuma câmara.";
+          return;
+        }
+
+        let camera = cameras[0];
+
+        for (const c of cameras) {
+          const nome = (c.label || "").toLowerCase();
+
+          if (
+            nome.includes("back") ||
+            nome.includes("rear") ||
+            nome.includes("environment") ||
+            nome.includes("traseira")
+          ) {
+            camera = c;
+            break;
+          }
+        }
+
+        return scanner.start(
+          camera.id,
+          {
+            fps: 10,
+            qrbox: {
+              width: 250,
+              height: 250
+            }
+          },
+          qrLido,
+          () => {}
+        );
+      })
+      .then(() => {
+        document.getElementById("estado").innerHTML =
+          "📷 Câmara pronta";
+      })
+      .catch(err => {
+        document.getElementById("estado").innerHTML =
+          "❌ Não foi possível iniciar a câmara.<br><br>" + err;
+      });
+  </script>
+
+</body>
+</html>
