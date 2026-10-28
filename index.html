@@ -59,22 +59,14 @@
     let bloqueado = false;
 
     function qrLido(textoQR) {
+  if (bloqueado) return;
+  bloqueado = true;
 
-      if (bloqueado) return;
-      bloqueado = true;
+  document.getElementById("estado").textContent =
+    "QR Code lido: " + textoQR;
 
-      document.getElementById("estado").innerHTML =
-        "✅ QR Code lido<br>A abrir o bilhete...";
-
-      scanner.stop()
-        .then(() => {
-          window.location.href = textoQR;
-        })
-        .catch(() => {
-          window.location.href = textoQR;
-        });
-    }
-
+  scanner.stop().catch(() => {});
+}
     Html5Qrcode.getCameras()
       .then(cameras => {
 
