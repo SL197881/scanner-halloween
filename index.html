@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="pt">
 <head>
@@ -26,6 +27,13 @@
       color: #ccc;
     }
 
+    button {
+      padding: 15px;
+      font-size: 18px;
+      margin-top: 20px;
+      cursor: pointer;
+    }
+
     #reader {
       width: 100%;
       max-width: 500px;
@@ -39,6 +47,8 @@
       margin-top: 20px;
       padding: 15px;
       font-size: 18px;
+      overflow-wrap: anywhere;
+      white-space: pre-wrap;
     }
   </style>
 </head>
@@ -47,78 +57,83 @@
 
   <h1>🎃 Scanner Halloween 2026</h1>
 
-<p>Aponte a câmara para o QR Code do bilhete</p>
+  <p>Aponte a câmara para o QR Code do bilhete</p>
 
-<button onclick="testarLigacao()"
-        style="padding:15px; font-size:18px; margin-top:20px;">
-  TESTAR LIGAÇÃO AO GOOGLE
-</button>
+  <button onclick="testarLigacao()">
+    TESTAR LIGAÇÃO AO GOOGLE
+  </button>
 
-async function testarLigacao() {
-  const url = 'https://script.google.com/macros/s/AKfycbwNjeW0mFSIqSSjyxuukpKrWF4vc1eurM_Dh_9lQl4z1SuRLEmk247T_ZdzV0qHjSoM/exec';
+  <div id="reader"></div>
 
-  const estado = document.getElementById('estado');
-  estado.textContent = 'A consultar bilhete de teste...';
+  <div id="estado">
+    A iniciar a câmara...
+  </div>
 
-  try {
-    const resposta = await fetch(url, {
-      method: 'POST',
-      body: new URLSearchParams({
-        bilhete: 'HAL-2026-0033'
-      })
-    });
+  <script>
+    const URL_APPS_SCRIPT =
+      'https://script.google.com/macros/s/AKfycbwNjeW0mFSIqSSjyxuukpKrWF4vc1eurM_Dh_9lQl4z1SuRLEmk247T_ZdzV0qHjSoM/exec';
 
-    const dados = await resposta.json();
-
-    estado.textContent = JSON.stringify(dados, null, 2);
-  } catch (erro) {
-    estado.textContent =
-      'Não foi possível ler a resposta do Google: ' + erro.message;
-  }
-}
-
-    .then(() => {
-      document.getElementById('estado').textContent =
-        'Pedido enviado. Verificar execução no Apps Script.';
-    })
-    .catch(err => {
-      document.getElementById('estado').textContent =
-        'Falha de comunicação: ' + err.message;
-    });
-  }
-
-  const scanner = new Html5Qrcode("reader");
+    const estado = document.getElementById('estado');
+    const scanner = new Html5Qrcode('reader');
 
     let bloqueado = false;
 
+    async function testarLigacao() {
+      estado.textContent = 'A consultar bilhete de teste...';
+
+      try {
+        const resposta = await fetch(URL_APPS_SCRIPT, {
+          method: 'POST',
+          body: new URLSearchParams({
+            bilhete: 'HAL-2026-0033'
+          })
+        });
+
+        if (!resposta.ok) {
+          throw new Error('HTTP ' + resposta.status);
+        }
+
+        const dados = await resposta.json();
+
+        estado.textContent =
+          JSON.stringify(dados, null, 2);
+
+      } catch (erro) {
+        estado.textContent =
+          'Não foi possível ler a resposta do Google: ' +
+          erro.message;
+      }
+    }
+
     function qrLido(textoQR) {
-  if (bloqueado) return;
-  bloqueado = true;
+      if (bloqueado) return;
 
-  document.getElementById("estado").textContent =
-    "QR Code lido: " + textoQR;
+      bloqueado = true;
 
-  scanner.stop().catch(() => {});
-}
+      estado.textContent =
+        'QR Code lido: ' + textoQR;
+
+      scanner.stop().catch(() => {});
+    }
+
     Html5Qrcode.getCameras()
       .then(cameras => {
-
         if (!cameras || cameras.length === 0) {
-          document.getElementById("estado").innerHTML =
-            "❌ Não foi encontrada nenhuma câmara.";
+          estado.textContent =
+            '❌ Não foi encontrada nenhuma câmara.';
           return;
         }
 
         let camera = cameras[0];
 
         for (const c of cameras) {
-          const nome = (c.label || "").toLowerCase();
+          const nome = (c.label || '').toLowerCase();
 
           if (
-            nome.includes("back") ||
-            nome.includes("rear") ||
-            nome.includes("environment") ||
-            nome.includes("traseira")
+            nome.includes('back') ||
+            nome.includes('rear') ||
+            nome.includes('environment') ||
+            nome.includes('traseira')
           ) {
             camera = c;
             break;
@@ -139,14 +154,17 @@ async function testarLigacao() {
         );
       })
       .then(() => {
-        document.getElementById("estado").innerHTML =
-          "📷 Câmara pronta";
+        if (!bloqueado) {
+          estado.textContent = '📷 Câmara pronta';
+        }
       })
-      .catch(err => {
-        document.getElementById("estado").innerHTML =
-          "❌ Não foi possível iniciar a câmara.<br><br>" + err;
+      .catch(erro => {
+        estado.textContent =
+          '❌ Não foi possível iniciar a câmara: ' +
+          erro.message;
       });
   </script>
 
 </body>
 </html>
+
