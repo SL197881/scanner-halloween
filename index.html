@@ -1,170 +1,115 @@
-
 <!DOCTYPE html>
 <html lang="pt">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Scanner Halloween 2026</title>
-
   <script src="https://unpkg.com/html5-qrcode"></script>
-
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 20px;
-      text-align: center;
-      background: #111;
-      color: white;
-    }
-
-    h1 {
-      font-size: 25px;
-      margin-bottom: 5px;
-    }
-
-    p {
-      color: #ccc;
-    }
-
-    button {
-      padding: 15px;
-      font-size: 18px;
-      margin-top: 20px;
-      cursor: pointer;
-    }
-
-    #reader {
-      width: 100%;
-      max-width: 500px;
-      margin: 25px auto;
-      background: white;
-      border-radius: 12px;
-      overflow: hidden;
-    }
-
-    #estado {
-      margin-top: 20px;
-      padding: 15px;
-      font-size: 18px;
-      overflow-wrap: anywhere;
-      white-space: pre-wrap;
-    }
+    body{font-family:Arial,sans-serif;background:#111;color:#fff;text-align:center;margin:0;padding:20px}
+    main{max-width:550px;margin:auto} h1{font-size:26px} p{color:#ddd}
+    #reader{width:100%;max-width:500px;margin:18px auto;background:white;border-radius:12px;overflow:hidden}
+    button,input{font:inherit;padding:13px;border-radius:9px}button{border:0;cursor:pointer;margin:7px;background:#7052e9;color:white;font-weight:bold}
+    button:disabled{opacity:.5;cursor:not-allowed} input{max-width:160px;width:55%;text-align:center}
+    #cartao{display:none;background:#242424;border-radius:14px;padding:18px;margin:20px auto;line-height:1.7}
+    #estado{margin:18px auto;white-space:pre-wrap;overflow-wrap:anywhere;font-size:17px}
+    .aviso{color:#ffd16e}.erro{color:#ff8c8c}.ok{color:#a4efb4}
   </style>
 </head>
-
-<body>
-
+<body><main>
   <h1>🎃 Scanner Halloween 2026</h1>
-
-  <p>Aponte a câmara para o QR Code do bilhete</p>
-
-  <button onclick="testarLigacao()">
-    TESTAR LIGAÇÃO AO GOOGLE
-  </button>
-
+  <p>Controlo de entradas — organização</p>
+  <label for="pin">PIN da organização</label><br>
+  <input id="pin" type="password" inputmode="numeric" autocomplete="off" placeholder="PIN">
   <div id="reader"></div>
-
-  <div id="estado">
-    A iniciar a câmara...
+  <div id="estado">A iniciar a câmara...</div>
+  <div id="cartao">
+    <h2 id="numero"></h2>
+    <div id="dados"></div>
+    <div id="situacao"></div>
+    <button id="confirmar" onclick="confirmarEntrada()">CONFIRMAR ENTRADA</button>
   </div>
+  <button id="proximo" onclick="proximoBilhete()">📷 LER PRÓXIMO BILHETE</button>
+</main>
+<script>
+  const URL_API='https://script.google.com/macros/s/AKfycbwNjeW0mFSIqSSjyxuukpKrWF4vc1eurM_Dh_9lQl4z1SuRLEmk247T_ZdzV0qHjSoM/exec';
+  const estado=document.getElementById('estado');
+  const scanner=new Html5Qrcode('reader');
+  let bloqueado=false, bilheteAtual='', ocupado=false, scannerAtivo=false;
 
-  <script>
-    const URL_APPS_SCRIPT =
-      'https://script.google.com/macros/s/AKfycbwNjeW0mFSIqSSjyxuukpKrWF4vc1eurM_Dh_9lQl4z1SuRLEmk247T_ZdzV0qHjSoM/exec';
-
-    const estado = document.getElementById('estado');
-    const scanner = new Html5Qrcode('reader');
-
-    let bloqueado = false;
-
-    async function testarLigacao() {
-      estado.textContent = 'A consultar bilhete de teste...';
-
-      try {
-        const resposta = await fetch(URL_APPS_SCRIPT, {
-          method: 'POST',
-          body: new URLSearchParams({
-            bilhete: 'HAL-2026-0033'
-          })
-        });
-
-        if (!resposta.ok) {
-          throw new Error('HTTP ' + resposta.status);
-        }
-
-        const dados = await resposta.json();
-
-        estado.textContent =
-          JSON.stringify(dados, null, 2);
-
-      } catch (erro) {
-        estado.textContent =
-          'Não foi possível ler a resposta do Google: ' +
-          erro.message;
+  function mensagem(texto,classe='') { estado.className=classe; estado.textContent=texto; }
+  function extrairBilhete(texto) {
+    try {
+      const u=new URL(texto);
+      if(u.origin!=='https://script.google.com') return '';
+      return (u.searchParams.get('bilhete')||'').trim();
+    } catch { return /^HAL-2026-\d{4,}$/.test(texto.trim()) ? texto.trim() : ''; }
+  }
+  async function pedido(acao,bilhete) {
+    const pin=document.getElementById('pin').value.trim();
+    if(!pin) throw new Error('Introduz primeiro o PIN da organização.');
+    const resposta=await fetch(URL_API,{
+      method:'POST',
+      body:new URLSearchParams({acao,bilhete,pin}),
+      redirect:'follow'
+    });
+    if(!resposta.ok) throw new Error('Erro HTTP '+resposta.status);
+    return await resposta.json();
+  }
+  async function qrLido(textoQR) {
+    if(bloqueado) return;
+    bloqueado=true;
+    bilheteAtual=extrairBilhete(textoQR);
+    if(scannerAtivo) { await scanner.stop().catch(()=>{}); scannerAtivo=false; }
+    if(!/^HAL-2026-\d{4,}$/.test(bilheteAtual)) {
+      mensagem('❌ QR Code inválido.','erro'); return;
+    }
+    mensagem('A consultar '+bilheteAtual+'...');
+    try {
+      const d=await pedido('consultar',bilheteAtual);
+      if(!d.sucesso) { mensagem('❌ '+d.mensagem,'erro'); return; }
+      document.getElementById('numero').textContent=d.bilhete;
+      document.getElementById('dados').textContent=`Responsável: ${d.nome} | Adultos: ${d.adultos} | Crianças: ${d.criancas} | Total: ${d.totalPessoas}`;
+      document.getElementById('situacao').textContent=d.utilizado ? '⚠️ JÁ UTILIZADO: '+d.checkin : '✅ Ainda não utilizado';
+      document.getElementById('confirmar').disabled=d.utilizado;
+      document.getElementById('cartao').style.display='block';
+      mensagem(d.utilizado?'Este bilhete já foi utilizado.':'Confirma os dados antes de registar a entrada.',d.utilizado?'aviso':'ok');
+    } catch(e) { mensagem('❌ '+e.message,'erro'); }
+  }
+  async function confirmarEntrada() {
+    if(ocupado||!bilheteAtual) return;
+    ocupado=true;
+    document.getElementById('confirmar').disabled=true;
+    mensagem('A confirmar entrada...');
+    try {
+      const d=await pedido('confirmar',bilheteAtual);
+      if(d.codigo==='ENTRADA_CONFIRMADA') {
+        mensagem('✅ ENTRADA CONFIRMADA — '+d.checkin,'ok');
+        document.getElementById('situacao').textContent='Entrada confirmada: '+d.checkin;
+      } else {
+        mensagem('⚠️ '+(d.mensagem||d.codigo),'aviso');
       }
-    }
-
-    function qrLido(textoQR) {
-      if (bloqueado) return;
-
-      bloqueado = true;
-
-      estado.textContent =
-        'QR Code lido: ' + textoQR;
-
-      scanner.stop().catch(() => {});
-    }
-
-    Html5Qrcode.getCameras()
-      .then(cameras => {
-        if (!cameras || cameras.length === 0) {
-          estado.textContent =
-            '❌ Não foi encontrada nenhuma câmara.';
-          return;
-        }
-
-        let camera = cameras[0];
-
-        for (const c of cameras) {
-          const nome = (c.label || '').toLowerCase();
-
-          if (
-            nome.includes('back') ||
-            nome.includes('rear') ||
-            nome.includes('environment') ||
-            nome.includes('traseira')
-          ) {
-            camera = c;
-            break;
-          }
-        }
-
-        return scanner.start(
-          camera.id,
-          {
-            fps: 10,
-            qrbox: {
-              width: 250,
-              height: 250
-            }
-          },
-          qrLido,
-          () => {}
-        );
-      })
-      .then(() => {
-        if (!bloqueado) {
-          estado.textContent = '📷 Câmara pronta';
-        }
-      })
-      .catch(erro => {
-        estado.textContent =
-          '❌ Não foi possível iniciar a câmara: ' +
-          erro.message;
-      });
-  </script>
-
-</body>
-</html>
-
+    } catch(e) {
+      mensagem('❌ '+e.message+' — verifica a coluna O antes de repetir.','erro');
+    } finally { ocupado=false; }
+  }
+  async function iniciarCamara() {
+    try {
+      mensagem('A iniciar a câmara...');
+      const cameras=await Html5Qrcode.getCameras();
+      if(!cameras.length) throw new Error('Nenhuma câmara encontrada.');
+      const camera=cameras.find(c=>/back|rear|environment|traseira/i.test(c.label||''))||cameras[0];
+      await scanner.start(camera.id,{fps:10,qrbox:{width:250,height:250}},qrLido,()=>{});
+      scannerAtivo=true;
+      mensagem('📷 Câmara pronta');
+    } catch(e) { mensagem('❌ Não foi possível iniciar a câmara: '+e.message,'erro'); }
+  }
+  async function proximoBilhete() {
+    if(ocupado) return;
+    document.getElementById('cartao').style.display='none';
+    bilheteAtual=''; bloqueado=false;
+    if(!scannerAtivo) await iniciarCamara();
+  }
+  iniciarCamara();
+</script>
+</body></html>
