@@ -54,26 +54,29 @@
   TESTAR LIGAÇÃO AO GOOGLE
 </button>
 
-<div id="reader"></div>
+async function testarLigacao() {
+  const url = 'https://script.google.com/macros/s/AKfycbwNjeW0mFSIqSSjyxuukpKrWF4vc1eurM_Dh_9lQl4z1SuRLEmk247T_ZdzV0qHjSoM/exec';
 
+  const estado = document.getElementById('estado');
+  estado.textContent = 'A consultar bilhete de teste...';
 
-  <div id="estado">
-    A iniciar a câmara...
-  </div>
-
-
-<script>
-  function testarLigacao() {
-    const url = 'https://script.google.com/macros/s/AKfycbwNjeW0mFSIqSSjyxuukpKrWF4vc1eurM_Dh_9lQl4z1SuRLEmk247T_ZdzV0qHjSoM/exec';
-
-    document.getElementById('estado').textContent =
-      'A testar ligação...';
-
-    fetch(url, {
+  try {
+    const resposta = await fetch(url, {
       method: 'POST',
-      mode: 'no-cors',
-      body: new URLSearchParams({ teste: 'HALLOWEEN-2026' })
-    })
+      body: new URLSearchParams({
+        bilhete: 'HAL-2026-0033'
+      })
+    });
+
+    const dados = await resposta.json();
+
+    estado.textContent = JSON.stringify(dados, null, 2);
+  } catch (erro) {
+    estado.textContent =
+      'Não foi possível ler a resposta do Google: ' + erro.message;
+  }
+}
+
     .then(() => {
       document.getElementById('estado').textContent =
         'Pedido enviado. Verificar execução no Apps Script.';
