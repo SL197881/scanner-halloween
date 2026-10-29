@@ -46,16 +46,46 @@
 <body>
 
   <h1>🎃 Scanner Halloween 2026</h1>
-  <p>Aponte a câmara para o QR Code do bilhete</p>
 
-  <div id="reader"></div>
+<p>Aponte a câmara para o QR Code do bilhete</p>
+
+<button onclick="testarLigacao()"
+        style="padding:15px; font-size:18px; margin-top:20px;">
+  TESTAR LIGAÇÃO AO GOOGLE
+</button>
+
+<div id="reader"></div>
+
 
   <div id="estado">
     A iniciar a câmara...
   </div>
 
-  <script>
-    const scanner = new Html5Qrcode("reader");
+
+<script>
+  function testarLigacao() {
+    const url = 'https://script.google.com/macros/s/AKfycbwNjeW0mFSIqSSjyxuukpKrWF4vc1eurM_Dh_9lQl4z1SuRLEmk247T_ZdzV0qHjSoM/exec';
+
+    document.getElementById('estado').textContent =
+      'A testar ligação...';
+
+    fetch(url, {
+      method: 'POST',
+      mode: 'no-cors',
+      body: new URLSearchParams({ teste: 'HALLOWEEN-2026' })
+    })
+    .then(() => {
+      document.getElementById('estado').textContent =
+        'Pedido enviado. Verificar execução no Apps Script.';
+    })
+    .catch(err => {
+      document.getElementById('estado').textContent =
+        'Falha de comunicação: ' + err.message;
+    });
+  }
+
+  const scanner = new Html5Qrcode("reader");
+
     let bloqueado = false;
 
     function qrLido(textoQR) {
